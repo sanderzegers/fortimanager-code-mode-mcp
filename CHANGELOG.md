@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **66 unit tests** across 5 suites (client, search executor, code executor, server, config)
 - **21 integration tests** validated against a live FortiManager v7.6.6 VM
 - **86 integration tests** (expanded from 21) across 8 groups: spec globals, edge cases, cross-reference validation, system ops, CRUD lifecycle, error handling, advanced operations, and stability stress tests
+- **API coverage report** (`scripts/spec-coverage.ts`) — offline spec analysis, cross-version comparison (v7.4 vs v7.6), and live URL validation with stratified sampling (96% validation rate on 100-URL sample)
 - **Performance tuning** — pre-computed JSON caches, WASM pre-warming, API call limits (50/execution), response truncation (100 KB)
 - **Security hardening** — sandboxed execution, no `eval` in host, fresh contexts, input validation with Zod
 - Community files: CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md, issue/PR templates
