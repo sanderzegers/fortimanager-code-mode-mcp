@@ -230,9 +230,7 @@ function formatToolResult(result: ExecuteResult) {
 
   // Add console logs if any
   if (result.logs.length > 0) {
-    const logText = result.logs
-      .map((l) => `[${l.level}] ${l.message}`)
-      .join('\n');
+    const logText = result.logs.map((l) => `[${l.level}] ${l.message}`).join('\n');
     parts.push({ type: 'text' as const, text: `--- Console Output ---\n${logText}` });
   }
 
@@ -248,7 +246,8 @@ function formatToolResult(result: ExecuteResult) {
     // Truncate oversized results to prevent flooding the MCP client
     if (dataStr.length > MAX_RESULT_SIZE) {
       const truncatedSize = dataStr.length;
-      dataStr = dataStr.slice(0, MAX_RESULT_SIZE) +
+      dataStr =
+        dataStr.slice(0, MAX_RESULT_SIZE) +
         `\n\n--- TRUNCATED (${String(truncatedSize)} chars total, showing first ${String(MAX_RESULT_SIZE)}) ---` +
         '\nTip: Use .slice(), .filter(), or specific field selections to reduce output size.';
     }

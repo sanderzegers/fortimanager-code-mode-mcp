@@ -31,9 +31,24 @@ export const SAMPLE_SPEC: FmgApiSpec = {
           urls: [{ path: '/sys/status', methods: ['get'] }],
           methods: ['get'],
           attributes: [
-            { name: 'Version', type: 'string', description: 'FortiManager version', required: false },
-            { name: 'Hostname', type: 'string', description: 'FortiManager hostname', required: false },
-            { name: 'Serial Number', type: 'string', description: 'Unit serial number', required: false },
+            {
+              name: 'Version',
+              type: 'string',
+              description: 'FortiManager version',
+              required: false,
+            },
+            {
+              name: 'Hostname',
+              type: 'string',
+              description: 'FortiManager hostname',
+              required: false,
+            },
+            {
+              name: 'Serial Number',
+              type: 'string',
+              description: 'Unit serial number',
+              required: false,
+            },
           ],
         },
       ],
@@ -54,8 +69,14 @@ export const SAMPLE_SPEC: FmgApiSpec = {
           type: 'table',
           description: 'IPv4 address objects used in firewall policies.',
           urls: [
-            { path: '/pm/config/adom/{adom}/obj/firewall/address', methods: ['get', 'add', 'set', 'update', 'delete'] },
-            { path: '/pm/config/global/obj/firewall/address', methods: ['get', 'add', 'set', 'update', 'delete'] },
+            {
+              path: '/pm/config/adom/{adom}/obj/firewall/address',
+              methods: ['get', 'add', 'set', 'update', 'delete'],
+            },
+            {
+              path: '/pm/config/global/obj/firewall/address',
+              methods: ['get', 'add', 'set', 'update', 'delete'],
+            },
           ],
           methods: ['get', 'add', 'set', 'update', 'delete'],
           attributes: [
@@ -63,7 +84,12 @@ export const SAMPLE_SPEC: FmgApiSpec = {
             { name: 'subnet', type: 'array', description: 'IP/Netmask pair', required: false },
             { name: 'type', type: 'integer', description: 'Address type', required: false },
             { name: 'comment', type: 'string', description: 'Comment', required: false },
-            { name: 'associated-interface', type: 'string', description: 'Associated interface', required: false },
+            {
+              name: 'associated-interface',
+              type: 'string',
+              description: 'Associated interface',
+              required: false,
+            },
           ],
         },
         {
@@ -71,7 +97,10 @@ export const SAMPLE_SPEC: FmgApiSpec = {
           type: 'table',
           description: 'Firewall address groups.',
           urls: [
-            { path: '/pm/config/adom/{adom}/obj/firewall/addrgrp', methods: ['get', 'add', 'set', 'update', 'delete'] },
+            {
+              path: '/pm/config/adom/{adom}/obj/firewall/addrgrp',
+              methods: ['get', 'add', 'set', 'update', 'delete'],
+            },
           ],
           methods: ['get', 'add', 'set', 'update', 'delete'],
           attributes: [
@@ -93,11 +122,7 @@ export const SAMPLE_SPEC: FmgApiSpec = {
 
 // ─── Sample JSON-RPC Responses ──────────────────────────────────────
 
-export function makeSuccessResponse<T>(
-  id: number,
-  url: string,
-  data: T,
-): JsonRpcResponse<T> {
+export function makeSuccessResponse<T>(id: number, url: string, data: T): JsonRpcResponse<T> {
   return {
     id,
     result: [

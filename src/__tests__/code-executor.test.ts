@@ -97,9 +97,7 @@ describe('CodeExecutor', () => {
       const client = createMockClient();
       const executor = createExecutor(client);
 
-      vi.mocked(client.rawRequest).mockRejectedValueOnce(
-        new Error('Connection refused'),
-      );
+      vi.mocked(client.rawRequest).mockRejectedValueOnce(new Error('Connection refused'));
 
       const result = await executor.execute(`
         try {
@@ -118,15 +116,9 @@ describe('CodeExecutor', () => {
       const executor = createExecutor(client);
 
       vi.mocked(client.rawRequest)
+        .mockResolvedValueOnce(makeSuccessResponse(1, '/dvmdb/adom', [{ name: 'root', oid: 3 }]))
         .mockResolvedValueOnce(
-          makeSuccessResponse(1, '/dvmdb/adom', [
-            { name: 'root', oid: 3 },
-          ]),
-        )
-        .mockResolvedValueOnce(
-          makeSuccessResponse(2, '/dvmdb/adom/root/device', [
-            { name: 'fw-01', ip: '10.0.0.1' },
-          ]),
+          makeSuccessResponse(2, '/dvmdb/adom/root/device', [{ name: 'fw-01', ip: '10.0.0.1' }]),
         );
 
       const result = await executor.execute(`
@@ -149,9 +141,7 @@ describe('CodeExecutor', () => {
       const client = createMockClient();
       const executor = createExecutor(client);
 
-      const result = await executor.execute(
-        'console.log("test message"); 42',
-      );
+      const result = await executor.execute('console.log("test message"); 42');
 
       expect(result.ok).toBe(true);
       expect(result.logs).toHaveLength(1);

@@ -62,9 +62,7 @@ describe('SearchExecutor', () => {
     });
 
     it('index entries have expected shape', async () => {
-      const result = await executor.execute(
-        'specIndex.find(o => o.name === "firewall/address")',
-      );
+      const result = await executor.execute('specIndex.find(o => o.name === "firewall/address")');
 
       expect(result.ok).toBe(true);
       const entry = result.data as Record<string, unknown>;
@@ -99,9 +97,7 @@ describe('SearchExecutor', () => {
 
   describe('getObject()', () => {
     it('retrieves full object details by name', async () => {
-      const result = await executor.execute(
-        'getObject("firewall/address")',
-      );
+      const result = await executor.execute('getObject("firewall/address")');
 
       expect(result.ok).toBe(true);
       const obj = result.data as Record<string, unknown>;
@@ -150,9 +146,7 @@ describe('SearchExecutor', () => {
     });
 
     it('modules have object and method counts', async () => {
-      const result = await executor.execute(
-        'moduleList.find(m => m.name === "firewall")',
-      );
+      const result = await executor.execute('moduleList.find(m => m.name === "firewall")');
 
       expect(result.ok).toBe(true);
       const mod = result.data as Record<string, unknown>;
@@ -174,9 +168,7 @@ describe('SearchExecutor', () => {
 
   describe('console capture', () => {
     it('captures console.log output', async () => {
-      const result = await executor.execute(
-        'console.log("hello from sandbox"); 42',
-      );
+      const result = await executor.execute('console.log("hello from sandbox"); 42');
 
       expect(result.ok).toBe(true);
       expect(result.data).toBe(42);
@@ -201,9 +193,7 @@ describe('SearchExecutor', () => {
     });
 
     it('stringifies objects in console.log', async () => {
-      const result = await executor.execute(
-        'console.log({ key: "value" }); null',
-      );
+      const result = await executor.execute('console.log({ key: "value" }); null');
 
       expect(result.ok).toBe(true);
       expect(result.logs[0]!.message).toContain('"key"');

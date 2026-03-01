@@ -21,10 +21,7 @@ interface Logger {
 /**
  * Start the Stdio transport — reads from stdin, writes to stdout.
  */
-export async function startStdioTransport(
-  server: McpServer,
-  logger: Logger,
-): Promise<void> {
+export async function startStdioTransport(server: McpServer, logger: Logger): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   logger.info('MCP server listening on stdio');
@@ -69,9 +66,7 @@ export async function startHttpTransport(
   );
 
   httpServer.listen(config.mcpHttpPort, () => {
-    logger.info(
-      `MCP HTTP server listening on port ${String(config.mcpHttpPort)}`,
-    );
+    logger.info(`MCP HTTP server listening on port ${String(config.mcpHttpPort)}`);
     logger.info(`  Health:  http://localhost:${String(config.mcpHttpPort)}/health`);
     logger.info(`  MCP:     http://localhost:${String(config.mcpHttpPort)}/mcp`);
   });

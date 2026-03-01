@@ -188,11 +188,7 @@ function discoverModules(files: string[]): Map<string, string[]> {
 
 // ─── Module Parsing ─────────────────────────────────────────────────
 
-function parseModule(
-  htmlDir: string,
-  moduleName: string,
-  moduleFiles: string[],
-): FmgModule | null {
+function parseModule(htmlDir: string, moduleName: string, moduleFiles: string[]): FmgModule | null {
   const methodsFile = moduleFiles.find((f) => f.endsWith('-methods.htm'));
   const objectsFile = moduleFiles.find((f) => f.endsWith('-objects.htm'));
 
@@ -361,7 +357,10 @@ function parseObjectsHtml($: cheerio.CheerioAPI): FmgObjectDef[] {
 
 // ─── URL Table Parsing ──────────────────────────────────────────────
 
-function parseUrlTable($: cheerio.CheerioAPI, $div: cheerio.Cheerio<cheerio.Element>): FmgObjectUrl[] {
+function parseUrlTable(
+  $: cheerio.CheerioAPI,
+  $div: cheerio.Cheerio<cheerio.Element>,
+): FmgObjectUrl[] {
   const urls: FmgObjectUrl[] = [];
 
   // URL table is the <table> without .param_table class
@@ -441,8 +440,7 @@ function parseAttributeDesc(
   const size = sizeMatch ? parseInt(sizeMatch[1]!, 10) : undefined;
 
   // Master key
-  const masterKey =
-    html.includes('<b>master key</b>') || html.includes('master key');
+  const masterKey = html.includes('<b>master key</b>') || html.includes('master key');
 
   // Default value
   const defaultMatch = html.match(/Default value:\s*(.+?)(?:<|$)/);

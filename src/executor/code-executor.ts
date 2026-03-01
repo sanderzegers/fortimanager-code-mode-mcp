@@ -151,7 +151,7 @@ export class CodeExecutor {
         if (apiCallCount > MAX_API_CALLS_PER_EXECUTION) {
           throw new Error(
             `API call limit exceeded (max ${String(MAX_API_CALLS_PER_EXECUTION)} calls per execution). ` +
-            'Use more targeted queries or batch multiple URLs in a single request.',
+              'Use more targeted queries or batch multiple URLs in a single request.',
           );
         }
 

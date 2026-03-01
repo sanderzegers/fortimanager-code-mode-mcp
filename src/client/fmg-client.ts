@@ -160,10 +160,7 @@ export class FmgClient {
   }
 
   /** Send a single-param request and extract the first result's data */
-  private async singleRequest<T>(
-    method: FmgMethod,
-    params: FmgRequestParams,
-  ): Promise<T> {
+  private async singleRequest<T>(method: FmgMethod, params: FmgRequestParams): Promise<T> {
     const request = this.buildRequest(method, [params]);
     const response = await this.sendRequest<T>(request);
 

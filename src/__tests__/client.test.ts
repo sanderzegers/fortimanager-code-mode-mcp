@@ -8,11 +8,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { FmgClient } from '../client/fmg-client.js';
 import { FmgApiError, FmgTransportError } from '../client/types.js';
-import {
-  SAMPLE_CLIENT_CONFIG,
-  makeSuccessResponse,
-  makeErrorResponse,
-} from './fixtures/index.js';
+import { SAMPLE_CLIENT_CONFIG, makeSuccessResponse, makeErrorResponse } from './fixtures/index.js';
 
 // ─── Setup ──────────────────────────────────────────────────────────
 
@@ -253,8 +249,14 @@ describe('FmgClient', () => {
       await client.get('/url/1');
       await client.get('/url/2');
 
-      const body1 = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as Record<string, unknown>;
-      const body2 = JSON.parse(vi.mocked(fetch).mock.calls[1]![1]!.body as string) as Record<string, unknown>;
+      const body1 = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string) as Record<
+        string,
+        unknown
+      >;
+      const body2 = JSON.parse(vi.mocked(fetch).mock.calls[1]![1]!.body as string) as Record<
+        string,
+        unknown
+      >;
 
       expect(body1['id']).toBe(1);
       expect(body2['id']).toBe(2);

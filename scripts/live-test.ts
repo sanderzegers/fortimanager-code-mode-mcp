@@ -1,10 +1,10 @@
 /**
  * Live test script — validates SearchExecutor + CodeExecutor against real FortiManager
- * 
+ *
  * Run: npx tsx scripts/live-test.ts
  */
 
-import { readFileSync  } from 'fs';
+import { readFileSync } from 'fs';
 import { config } from 'dotenv';
 import { SearchExecutor } from '../src/executor/search-executor.js';
 import { CodeExecutor } from '../src/executor/code-executor.js';
@@ -58,7 +58,7 @@ async function testSearch(): Promise<void> {
 
   // Test 2: Find firewall address objects
   r = await executor.execute(
-    'specIndex.filter(o => o.name.includes("firewall/address")).map(o => o.name).slice(0, 5)'
+    'specIndex.filter(o => o.name.includes("firewall/address")).map(o => o.name).slice(0, 5)',
   );
   if (r.ok && Array.isArray(r.data) && r.data.length > 0) {
     ok('firewall/address search', r.data);
@@ -68,7 +68,7 @@ async function testSearch(): Promise<void> {
 
   // Test 3: getObject by name
   r = await executor.execute(
-    'const obj = getObject("firewall/address"); obj ? { name: obj.name, urlCount: obj.urls.length, attrCount: obj.attributes.length } : null'
+    'const obj = getObject("firewall/address"); obj ? { name: obj.name, urlCount: obj.urls.length, attrCount: obj.attributes.length } : null',
   );
   if (r.ok && r.data && typeof r.data === 'object') {
     ok('getObject("firewall/address")', r.data);
@@ -78,7 +78,7 @@ async function testSearch(): Promise<void> {
 
   // Test 4: getObject by URL
   r = await executor.execute(
-    'const obj = getObject("/pm/config/adom/<adom_name>/obj/firewall/address"); obj ? obj.name : null'
+    'const obj = getObject("/pm/config/adom/<adom_name>/obj/firewall/address"); obj ? obj.name : null',
   );
   if (r.ok && r.data === 'firewall/address') {
     ok('getObject by URL', r.data);
@@ -111,9 +111,7 @@ async function testSearch(): Promise<void> {
   }
 
   // Test 8: Complex query — objects supporting 'exec' method
-  r = await executor.execute(
-    'specIndex.filter(o => o.methods.includes("exec")).length'
-  );
+  r = await executor.execute('specIndex.filter(o => o.methods.includes("exec")).length');
   if (r.ok && typeof r.data === 'number') {
     ok('objects with exec method', r.data);
   } else {
@@ -150,7 +148,7 @@ async function testExecute(): Promise<void> {
 
   // Test 1: Get system status
   let r = await executor.execute(
-    'const resp = fortimanager.request("get", [{ url: "/sys/status" }]); resp.result[0].data.Hostname'
+    'const resp = fortimanager.request("get", [{ url: "/sys/status" }]); resp.result[0].data.Hostname',
   );
   if (r.ok && typeof r.data === 'string') {
     ok('Get /sys/status → Hostname', r.data);
@@ -189,7 +187,7 @@ async function testExecute(): Promise<void> {
 
   // Test 4: List devices (may be empty on fresh VM)
   r = await executor.execute(
-    'const resp = fortimanager.request("get", [{ url: "/dvmdb/device", fields: ["name", "ip", "sn", "conn_status"] }]); resp.result[0]'
+    'const resp = fortimanager.request("get", [{ url: "/dvmdb/device", fields: ["name", "ip", "sn", "conn_status"] }]); resp.result[0]',
   );
   if (r.ok) {
     const result = r.data as Record<string, unknown>;
@@ -205,9 +203,7 @@ async function testExecute(): Promise<void> {
   }
 
   // Test 5: Console log capture
-  r = await executor.execute(
-    'console.log("hello from sandbox"); 42'
-  );
+  r = await executor.execute('console.log("hello from sandbox"); 42');
   if (r.ok && r.data === 42 && r.logs.length > 0 && r.logs[0].message === 'hello from sandbox') {
     ok('Console capture', { data: r.data, logCount: r.logs.length });
   } else {
@@ -216,7 +212,7 @@ async function testExecute(): Promise<void> {
 
   // Test 6: Error handling — bad URL
   r = await executor.execute(
-    'const resp = fortimanager.request("get", [{ url: "/nonexistent/path" }]); resp.result[0].status'
+    'const resp = fortimanager.request("get", [{ url: "/nonexistent/path" }]); resp.result[0].status',
   );
   if (r.ok) {
     ok('Bad URL error response', r.data);
@@ -359,7 +355,7 @@ async function main(): Promise<void> {
   console.log(`  Passed: ${passed}`);
   console.log(`  Failed: ${failed}`);
   console.log(`  Total:  ${passed + failed}`);
-  
+
   if (failed > 0) {
     process.exit(1);
   }
