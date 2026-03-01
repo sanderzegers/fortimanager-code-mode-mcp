@@ -189,8 +189,31 @@ export function createMcpServer(options: CreateServerOptions): McpServer {
       },
     },
     async ({ code }) => {
-      const result = await searchExecutor.execute(code);
-      return formatToolResult(result);
+      if (code.length > MAX_CODE_SIZE) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Error: Code input too large (${String(code.length)} chars, max ${String(MAX_CODE_SIZE)}). Break into smaller queries.`,
+            },
+          ],
+          isError: true,
+        };
+      }
+      try {
+        const result = await searchExecutor.execute(code);
+        return formatToolResult(result);
+      } catch (err: unknown) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
     },
   );
 
@@ -210,8 +233,31 @@ export function createMcpServer(options: CreateServerOptions): McpServer {
       },
     },
     async ({ code }) => {
-      const result = await codeExecutor.execute(code);
-      return formatToolResult(result);
+      if (code.length > MAX_CODE_SIZE) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Error: Code input too large (${String(code.length)} chars, max ${String(MAX_CODE_SIZE)}). Break into smaller queries.`,
+            },
+          ],
+          isError: true,
+        };
+      }
+      try {
+        const result = await codeExecutor.execute(code);
+        return formatToolResult(result);
+      } catch (err: unknown) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
     },
   );
 
@@ -222,6 +268,9 @@ export function createMcpServer(options: CreateServerOptions): McpServer {
 
 /** Maximum size of a tool result in characters before truncation */
 const MAX_RESULT_SIZE = 100_000; // ~100 KB
+
+/** Maximum allowed code input size in characters */
+const MAX_CODE_SIZE = 100_000; // ~100 KB
 
 // ─── Result Formatting ──────────────────────────────────────────────
 

@@ -27,6 +27,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Community files: CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md, issue/PR templates
 - Git LFS tracking for large API spec JSON files
 
+### Security
+
+- **HTTP request timeout** (30s) prevents indefinite hang on slow/unreachable FortiManager
+- **JSON-RPC response shape validation** prevents crashes from non-JSON-RPC responses (e.g., HTML error pages)
+- **Sandbox method validation** ensures only allowed FMG methods (`get`, `set`, `add`, etc.) are forwarded
+- **Sandbox params validation** verifies params is an array with required `url` field before forwarding
+- **Log accumulation cap** (1 MB / 1,000 entries) prevents host OOM from runaway console.log in sandbox
+- **Code input size limit** (100 KB) prevents oversized code payloads from consuming executor resources
+- **SSL fallback hardened** — throws error instead of silently downgrading when undici unavailable
+- **HTTP handler error boundary** — try/catch in transport prevents unhandled rejections from crashing server
+- **Graceful shutdown** for both stdio and HTTP transports with signal deduplication
+- **Startup health check** validates FortiManager connectivity at boot (non-fatal warning)
+
 ## [0.1.0] — 2026-03-01
 
 Initial alpha release.

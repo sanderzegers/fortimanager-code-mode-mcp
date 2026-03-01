@@ -25,6 +25,19 @@ export async function startStdioTransport(server: McpServer, logger: Logger): Pr
   const transport = new StdioServerTransport();
   await server.connect(transport);
   logger.info('MCP server listening on stdio');
+
+  // Graceful shutdown for stdio transport
+  const shutdown = (): void => {
+    logger.info('Shutting down stdio transport...');
+    void transport.close().catch(() => {
+      /* ignore close errors */
+    });
+    void server.close().catch(() => {
+      /* ignore close errors */
+    });
+  };
+  process.once('SIGINT', shutdown);
+  process.once('SIGTERM', shutdown);
 }
 
 /**
@@ -44,24 +57,32 @@ export async function startHttpTransport(
   const httpServer = createServer(
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (req: IncomingMessage, res: ServerResponse) => {
-      const url = req.url ?? '/';
+      try {
+        const url = req.url ?? '/';
 
-      // Health-check endpoint
-      if (url === '/health' && req.method === 'GET') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'ok', version: '0.1.0' }));
-        return;
+        // Health-check endpoint
+        if (url === '/health' && req.method === 'GET') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'ok', version: '0.1.0' }));
+          return;
+        }
+
+        // MCP endpoint — handle POST, GET, DELETE for Streamable HTTP
+        if (url === '/mcp') {
+          await transport.handleRequest(req, res);
+          return;
+        }
+
+        // Fallback
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Not found' }));
+      } catch (err: unknown) {
+        logger.error('HTTP handler error:', err);
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Internal server error' }));
+        }
       }
-
-      // MCP endpoint — handle POST, GET, DELETE for Streamable HTTP
-      if (url === '/mcp') {
-        await transport.handleRequest(req, res);
-        return;
-      }
-
-      // Fallback
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Not found' }));
     },
   );
 
@@ -72,11 +93,14 @@ export async function startHttpTransport(
   });
 
   // Graceful shutdown
+  let shuttingDown = false;
   const shutdown = (): void => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     logger.info('Shutting down HTTP server...');
     httpServer.close();
     void transport.close();
   };
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
+  process.once('SIGTERM', shutdown);
 }

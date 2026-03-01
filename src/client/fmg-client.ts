@@ -21,11 +21,21 @@ import {
 
 // ─── Client ─────────────────────────────────────────────────────────
 
+/** Default HTTP request timeout in milliseconds */
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+
+/** Maximum request ID before wrapping */
+const MAX_REQUEST_ID = 1_000_000_000;
+
 export class FmgClient {
   private readonly endpoint: string;
   private readonly auth: AuthProvider;
   private readonly verifySsl: boolean;
+  private readonly requestTimeoutMs: number;
   private requestId = 0;
+
+  /** Cached undici Agent for SSL bypass — created lazily, reused across requests */
+  private unsafeDispatcher: unknown = null;
 
   constructor(
     private readonly config: FmgClientConfig,
@@ -34,6 +44,7 @@ export class FmgClient {
     this.endpoint = `${config.host}:${config.port}/jsonrpc`;
     this.auth = auth ?? createAuthProvider(config);
     this.verifySsl = config.verifySsl;
+    this.requestTimeoutMs = DEFAULT_REQUEST_TIMEOUT_MS;
   }
 
   // ── Public API Methods ──────────────────────────────────────────
@@ -151,8 +162,9 @@ export class FmgClient {
 
   /** Build a JSON-RPC request envelope */
   private buildRequest(method: FmgMethod, params: FmgRequestParams[]): JsonRpcRequest {
+    this.requestId = (this.requestId + 1) % MAX_REQUEST_ID;
     return {
-      id: ++this.requestId,
+      id: this.requestId,
       method,
       params,
       session: this.auth.getSession(),
@@ -181,11 +193,12 @@ export class FmgClient {
       ...this.auth.getAuthHeaders(),
     };
 
-    // Build fetch options
+    // Build fetch options with timeout
     const fetchOptions: RequestInit = {
       method: 'POST',
       headers,
       body: JSON.stringify(request),
+      signal: AbortSignal.timeout(this.requestTimeoutMs),
     };
 
     // Handle SSL verification (Node.js specific)
@@ -199,8 +212,11 @@ export class FmgClient {
       httpResponse = await fetch(this.endpoint, fetchOptions);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
+      const isTimeout = err instanceof DOMException && err.name === 'TimeoutError';
       throw new FmgTransportError(
-        `Failed to connect to ${this.endpoint}: ${message}`,
+        isTimeout
+          ? `Request to ${this.endpoint} timed out after ${String(this.requestTimeoutMs)}ms`
+          : `Failed to connect to ${this.endpoint}: ${message}`,
         undefined,
         this.endpoint,
       );
@@ -214,14 +230,19 @@ export class FmgClient {
       );
     }
 
-    const body = (await httpResponse.json()) as JsonRpcResponse<T>;
+    // Parse and validate response shape
+    const body: unknown = await httpResponse.json();
+    const bodyObj = body as Record<string, unknown> | null;
 
-    // Update session if returned (for session-based auth)
-    if (body.session && this.auth.getSession() !== null) {
-      // Session rotation — some FMG versions rotate session IDs
+    if (!bodyObj || typeof bodyObj !== 'object' || !Array.isArray(bodyObj['result'])) {
+      throw new FmgTransportError(
+        'Invalid JSON-RPC response: missing or non-array "result" field',
+        httpResponse.status,
+        this.endpoint,
+      );
     }
 
-    return body;
+    return bodyObj as unknown as JsonRpcResponse<T>;
   }
 
   /** Throw FmgApiError if status code indicates failure */
@@ -234,20 +255,25 @@ export class FmgClient {
   /**
    * Get an undici dispatcher that skips TLS verification.
    * Only used when FMG_VERIFY_SSL=false (e.g., self-signed certs in lab environments).
+   * The Agent is cached and reused across requests.
    */
   private async getUnsafeDispatcher(): Promise<unknown> {
+    if (this.unsafeDispatcher) return this.unsafeDispatcher;
+
     try {
       const undici = await import('undici');
       const AgentClass = undici.Agent;
-      return new AgentClass({
+      this.unsafeDispatcher = new AgentClass({
         connect: { rejectUnauthorized: false },
       });
+      return this.unsafeDispatcher;
     } catch {
-      console.warn(
-        'Cannot disable SSL verification: undici not available. ' +
-          'Set FMG_VERIFY_SSL=true or install undici.',
+      throw new FmgTransportError(
+        'Cannot disable SSL verification: undici package not available. ' +
+          'Install undici (npm i undici) or set FMG_VERIFY_SSL=true.',
+        undefined,
+        this.endpoint,
       );
-      return undefined;
     }
   }
 }

@@ -14,7 +14,7 @@ import {
   type QuickJSHandle,
 } from 'quickjs-emscripten';
 import type { FmgClient } from '../client/fmg-client.js';
-import type { FmgMethod, FmgRequestParams } from '../client/types.js';
+import type { FmgRequestParams } from '../client/types.js';
 import {
   DEFAULT_EXECUTOR_OPTIONS,
   type ExecuteResult,
@@ -26,6 +26,25 @@ import {
 
 /** Maximum number of API calls per single execute() invocation */
 const MAX_API_CALLS_PER_EXECUTION = 50;
+
+/** Maximum total log size in bytes before truncation */
+const MAX_LOG_SIZE_BYTES = 1_048_576; // 1 MB
+
+/** Maximum number of log entries */
+const MAX_LOG_ENTRIES = 1_000;
+
+/** Allowed FMG JSON-RPC methods */
+const ALLOWED_METHODS = new Set([
+  'get',
+  'set',
+  'add',
+  'update',
+  'delete',
+  'exec',
+  'clone',
+  'move',
+  'replace',
+]);
 
 // ─── Code Executor ──────────────────────────────────────────────────
 
@@ -108,9 +127,15 @@ export class CodeExecutor {
 
   private setupConsole(context: QuickJSAsyncContext, logs: LogEntry[]): void {
     const consoleObj = context.newObject();
+    let totalLogSize = 0;
 
     for (const level of ['log', 'info', 'warn', 'error'] as const) {
       const fn = context.newFunction(level, (...args: QuickJSHandle[]) => {
+        // Enforce log limits
+        if (logs.length >= MAX_LOG_ENTRIES || totalLogSize >= MAX_LOG_SIZE_BYTES) {
+          return;
+        }
+
         const parts = args.map((a) => {
           try {
             return stringifyValue(context.dump(a));
@@ -119,9 +144,21 @@ export class CodeExecutor {
           }
         });
 
+        const message = parts.join(' ');
+        totalLogSize += message.length;
+
+        if (totalLogSize > MAX_LOG_SIZE_BYTES) {
+          logs.push({
+            level: 'warn',
+            message: `[log output truncated — exceeded ${String(MAX_LOG_SIZE_BYTES)} byte limit]`,
+            timestamp: Date.now(),
+          });
+          return;
+        }
+
         logs.push({
           level,
-          message: parts.join(' '),
+          message,
           timestamp: Date.now(),
         });
       });
@@ -155,11 +192,36 @@ export class CodeExecutor {
           );
         }
 
-        const method = context.getString(methodHandle) as FmgMethod;
-        const params = context.dump(paramsHandle) as FmgRequestParams[];
+        const method = context.getString(methodHandle);
+        const params: unknown = context.dump(paramsHandle);
+
+        // Validate method
+        if (!ALLOWED_METHODS.has(method)) {
+          throw new Error(
+            `Invalid method "${method}". Allowed: ${[...ALLOWED_METHODS].join(', ')}`,
+          );
+        }
+
+        // Validate params is an array with url fields
+        if (!Array.isArray(params)) {
+          throw new Error(
+            'params must be an array of objects, each with at least a "url" string field.',
+          );
+        }
+        for (const p of params) {
+          const pObj = p as Record<string, unknown> | null;
+          if (!pObj || typeof pObj !== 'object' || typeof pObj['url'] !== 'string') {
+            throw new Error('Each param must be an object with at least a "url" string field.');
+          }
+        }
+
+        const validatedParams = params as FmgRequestParams[];
 
         try {
-          const response = await this.client.rawRequest(method, params);
+          const response = await this.client.rawRequest(
+            method as import('../client/types.js').FmgMethod,
+            validatedParams,
+          );
           const responseJson = JSON.stringify(response);
           const responseStr = context.newString(responseJson);
           const parseExpr = context.evalCode('JSON.parse');

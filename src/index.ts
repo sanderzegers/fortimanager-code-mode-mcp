@@ -51,8 +51,39 @@ async function loadSpec(version: string): Promise<FmgApiSpec> {
   const specPath = resolve(__dirname, `spec/fmg-api-spec-${version}.json`);
   logger.info(`Loading API spec from ${specPath}...`);
 
-  const raw = await readFile(specPath, 'utf-8');
-  const spec = JSON.parse(raw) as FmgApiSpec;
+  let raw: string;
+  try {
+    raw = await readFile(specPath, 'utf-8');
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Failed to load API spec for version ${version}: ${message}. ` +
+        `Ensure fmg-api-spec-${version}.json exists in the spec/ directory.`,
+    );
+  }
+
+  let spec: FmgApiSpec;
+  try {
+    spec = JSON.parse(raw) as FmgApiSpec;
+  } catch {
+    throw new Error(
+      `Failed to parse API spec for version ${version}: invalid JSON. ` +
+        `The spec file may be corrupted — try regenerating it.`,
+    );
+  }
+
+  // Minimal shape validation
+  if (
+    !spec.version ||
+    typeof spec.version !== 'string' ||
+    !Array.isArray(spec.modules) ||
+    spec.modules.length === 0
+  ) {
+    throw new Error(
+      `Invalid API spec for version ${version}: missing or empty "version" or "modules" field. ` +
+        `The spec file may be corrupted — try regenerating it.`,
+    );
+  }
 
   const totalObjects = spec.modules.reduce((sum, m) => sum + m.objects.length, 0);
   logger.info(
@@ -92,13 +123,29 @@ async function main(): Promise<void> {
   });
   logger.info('FortiManager client created');
 
-  // 4. Create executors
+  // 5. Startup health check (non-fatal — search tool works without FMG)
+  try {
+    const health = await client.checkHealth();
+    if (health.connected) {
+      logger.info(
+        `FortiManager connected — ${health.hostname ?? 'unknown'} v${health.version ?? 'unknown'}`,
+      );
+    } else {
+      logger.warn(
+        'FortiManager health check failed — execute tool may not work. Search tool is unaffected.',
+      );
+    }
+  } catch {
+    logger.warn('FortiManager unreachable — execute tool may not work. Search tool is unaffected.');
+  }
+
+  // 6. Create executors
   const executorStart = Date.now();
   const searchExecutor = new SearchExecutor(spec);
   const codeExecutor = new CodeExecutor(client);
   logger.info(`Executors created in ${String(Date.now() - executorStart)}ms`);
 
-  // 5. Create MCP server
+  // 7. Create MCP server
   const server = createMcpServer({
     searchExecutor,
     codeExecutor,
@@ -106,7 +153,7 @@ async function main(): Promise<void> {
   });
   logger.info('MCP server created with search + execute tools');
 
-  // 7. Start transport
+  // 8. Start transport
   if (config.mcpTransport === 'stdio') {
     await startStdioTransport(server, logger);
   } else {

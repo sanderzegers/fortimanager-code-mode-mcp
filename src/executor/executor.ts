@@ -23,6 +23,14 @@ import {
   type LogEntry,
 } from './types.js';
 
+// ─── Constants ──────────────────────────────────────────────────────
+
+/** Maximum total log size in bytes before truncation */
+const MAX_LOG_SIZE_BYTES = 1_048_576; // 1 MB
+
+/** Maximum number of log entries */
+const MAX_LOG_ENTRIES = 1_000;
+
 // ─── Singleton WASM Module ──────────────────────────────────────────
 
 let quickJSModule: QuickJSWASMModule | null = null;
@@ -124,9 +132,15 @@ export abstract class BaseExecutor {
 
   private setupConsole(context: QuickJSContext, logs: LogEntry[]): void {
     const consoleObj = context.newObject();
+    let totalLogSize = 0;
 
     for (const level of ['log', 'info', 'warn', 'error'] as const) {
       const fn = context.newFunction(level, (...args: QuickJSHandle[]) => {
+        // Enforce log limits
+        if (logs.length >= MAX_LOG_ENTRIES || totalLogSize >= MAX_LOG_SIZE_BYTES) {
+          return;
+        }
+
         const parts = args.map((a) => {
           try {
             return stringifyValue(context.dump(a));
@@ -135,9 +149,21 @@ export abstract class BaseExecutor {
           }
         });
 
+        const message = parts.join(' ');
+        totalLogSize += message.length;
+
+        if (totalLogSize > MAX_LOG_SIZE_BYTES) {
+          logs.push({
+            level: 'warn',
+            message: `[log output truncated — exceeded ${String(MAX_LOG_SIZE_BYTES)} byte limit]`,
+            timestamp: Date.now(),
+          });
+          return;
+        }
+
         logs.push({
           level,
-          message: parts.join(' '),
+          message,
           timestamp: Date.now(),
         });
       });
