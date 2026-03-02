@@ -144,13 +144,17 @@ export interface CreateServerOptions {
   searchExecutor: SearchExecutor;
   codeExecutor: CodeExecutor;
   specVersion: string;
+  /** Optional logger for tool call audit trail */
+  logger?: {
+    info: (msg: string, ...args: unknown[]) => void;
+  };
 }
 
 /**
  * Create and configure the MCP server with search and execute tools.
  */
 export function createMcpServer(options: CreateServerOptions): McpServer {
-  const { searchExecutor, codeExecutor, specVersion } = options;
+  const { searchExecutor, codeExecutor, specVersion, logger } = options;
 
   const server = new McpServer(
     {
@@ -187,6 +191,7 @@ export function createMcpServer(options: CreateServerOptions): McpServer {
       },
     },
     async ({ code }) => {
+      logger?.info(`[search] ${String(code.length)} chars`);
       if (code.length > MAX_CODE_SIZE) {
         return {
           content: [
@@ -200,8 +205,10 @@ export function createMcpServer(options: CreateServerOptions): McpServer {
       }
       try {
         const result = await searchExecutor.execute(code);
+        logger?.info(`[search] ${result.ok ? 'ok' : 'error'} ${String(result.durationMs)}ms`);
         return formatToolResult(result);
       } catch (err: unknown) {
+        logger?.info(`[search] exception: ${err instanceof Error ? err.message : String(err)}`);
         return {
           content: [
             {
@@ -231,6 +238,7 @@ export function createMcpServer(options: CreateServerOptions): McpServer {
       },
     },
     async ({ code }) => {
+      logger?.info(`[execute] ${String(code.length)} chars`);
       if (code.length > MAX_CODE_SIZE) {
         return {
           content: [
@@ -244,8 +252,10 @@ export function createMcpServer(options: CreateServerOptions): McpServer {
       }
       try {
         const result = await codeExecutor.execute(code);
+        logger?.info(`[execute] ${result.ok ? 'ok' : 'error'} ${String(result.durationMs)}ms`);
         return formatToolResult(result);
       } catch (err: unknown) {
+        logger?.info(`[execute] exception: ${err instanceof Error ? err.message : String(err)}`);
         return {
           content: [
             {

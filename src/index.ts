@@ -150,6 +150,7 @@ async function main(): Promise<void> {
     searchExecutor,
     codeExecutor,
     specVersion: config.fmgApiVersion,
+    logger,
   });
   logger.info('MCP server created with search + execute tools');
 
