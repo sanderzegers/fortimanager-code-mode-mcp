@@ -124,15 +124,19 @@ export async function startStdioTransport(server: McpServer, logger: Logger): Pr
 
 /**
  * Start the Streamable HTTP transport — spins up a Node.js HTTP server.
+ *
+ * Accepts a serverFactory function instead of a single McpServer instance.
+ * A fresh McpServer + StreamableHTTPServerTransport is created per session,
+ * which avoids the "Server already initialized" rejection when multiple clients
+ * connect (or when a client reconnects after a dropped session).
  */
 export async function startHttpTransport(
-  server: McpServer,
+  serverFactory: () => McpServer,
   config: AppConfig,
   logger: Logger,
 ): Promise<void> {
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => randomUUID(),
-  });
+  // Map of sessionId -> transport for routing subsequent requests
+  const sessions = new Map<string, StreamableHTTPServerTransport>();
 
   const stats = createStats();
   const rateLimiter = new RateLimiter(60_000, 60); // 60 requests per minute per IP
@@ -142,8 +146,6 @@ export async function startHttpTransport(
     rateLimiter.cleanup();
   }, 300_000);
   cleanupInterval.unref(); // Don't prevent process exit
-
-  await server.connect(transport);
 
   const httpServer = createServer(
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -191,7 +193,56 @@ export async function startHttpTransport(
         if (url === '/mcp') {
           stats.mcpRequests++;
           logger.info(`MCP ${req.method ?? 'UNKNOWN'} from ${clientIp}`);
-          await transport.handleRequest(req, res);
+
+          const sessionId = req.headers['mcp-session-id'];
+
+          if (!sessionId && req.method === 'POST') {
+            // New session: create a fresh transport + server instance
+            const transport = new StreamableHTTPServerTransport({
+              sessionIdGenerator: () => randomUUID(),
+            });
+            const server = serverFactory();
+            await server.connect(transport);
+            await transport.handleRequest(req, res);
+
+            if (transport.sessionId) {
+              sessions.set(transport.sessionId, transport);
+              transport.onclose = (): void => {
+                if (transport.sessionId) {
+                  sessions.delete(transport.sessionId);
+                  logger.info(`Session closed: ${transport.sessionId}`);
+                }
+              };
+              logger.info(`Session created: ${transport.sessionId}`);
+            }
+          } else if (sessionId && typeof sessionId === 'string') {
+            // Existing session: route to the right transport
+            const transport = sessions.get(sessionId);
+            if (!transport) {
+              res.writeHead(404, { 'Content-Type': 'application/json' });
+              res.end(
+                JSON.stringify({
+                  jsonrpc: '2.0',
+                  error: { code: -32001, message: 'Session not found' },
+                  id: null,
+                }),
+              );
+              return;
+            }
+            await transport.handleRequest(req, res);
+          } else {
+            // GET/DELETE without session ID
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                error: { code: -32000, message: 'Bad Request: Mcp-Session-Id header is required' },
+                id: null,
+              }),
+            );
+            return;
+          }
+
           const elapsed = Date.now() - startTime;
           logger.info(`MCP ${req.method ?? 'UNKNOWN'} completed in ${String(elapsed)}ms`);
           return;
@@ -225,7 +276,10 @@ export async function startHttpTransport(
     logger.info('Shutting down HTTP server...');
     clearInterval(cleanupInterval);
     httpServer.close();
-    void transport.close();
+    for (const transport of sessions.values()) {
+      void transport.close();
+    }
+    sessions.clear();
   };
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);

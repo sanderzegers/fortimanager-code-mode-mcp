@@ -23,6 +23,7 @@ import { CodeExecutor } from './executor/code-executor.js';
 import { getQuickJSModule } from './executor/executor.js';
 import { createMcpServer } from './server/server.js';
 import { startStdioTransport, startHttpTransport } from './server/transport.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { FmgApiSpec } from './types/spec-types.js';
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -164,20 +165,21 @@ async function main(): Promise<void> {
   const codeExecutor = new CodeExecutor(client);
   logger.info(`Executors created in ${String(Date.now() - executorStart)}ms`);
 
-  // 7. Create MCP server
-  const server = createMcpServer({
-    searchExecutor,
-    codeExecutor,
-    specVersion: config.fmgApiVersion,
-    logger,
-  });
-  logger.info('MCP server created with search + execute tools');
+  // 7. Create MCP server factory (new instance per session for multi-session HTTP support)
+  const serverFactory = (): McpServer =>
+    createMcpServer({
+      searchExecutor,
+      codeExecutor,
+      specVersion: config.fmgApiVersion,
+      logger,
+    });
+  logger.info('MCP server factory created with search + execute tools');
 
   // 8. Start transport
   if (config.mcpTransport === 'stdio') {
-    await startStdioTransport(server, logger);
+    await startStdioTransport(serverFactory(), logger);
   } else {
-    await startHttpTransport(server, config, logger);
+    await startHttpTransport(serverFactory, config, logger);
   }
 }
 
