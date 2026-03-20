@@ -32,6 +32,9 @@ const configSchema = z.object({
 
   /** HTTP server port (only for http transport) */
   mcpHttpPort: z.coerce.number().int().min(1).max(65535).default(8000),
+
+  /** Optional Bearer token required on all HTTP MCP requests (recommended for HTTP transport) */
+  mcpAuthToken: z.string().min(1).optional(),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
@@ -51,6 +54,7 @@ export function loadConfig(): AppConfig {
     fmgApiVersion: process.env['FMG_API_VERSION'],
     mcpTransport: process.env['MCP_TRANSPORT'],
     mcpHttpPort: process.env['MCP_HTTP_PORT'],
+    mcpAuthToken: process.env['MCP_AUTH_TOKEN'],
   });
 
   if (!result.success) {

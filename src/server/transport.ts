@@ -177,6 +177,18 @@ export async function startHttpTransport(
           return;
         }
 
+        // Bearer token authentication for MCP endpoint
+        if (url === '/mcp' && config.mcpAuthToken) {
+          const authHeader = req.headers['authorization'];
+          const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+          if (token !== config.mcpAuthToken) {
+            logger.info(`Unauthorized MCP request from ${clientIp}`);
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Unauthorized: valid Bearer token required' }));
+            return;
+          }
+        }
+
         // Rate limiting for MCP endpoint
         if (url === '/mcp' && !rateLimiter.allow(clientIp)) {
           stats.rateLimited++;
