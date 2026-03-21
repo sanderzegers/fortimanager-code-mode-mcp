@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [1.0.1] — 2026-03-21
+
+### Fixed
+
+- **Spec generator auto-detection** — `generate-spec.ts` now auto-detects the latest FortiManager patch version in `docs/api-reference/` instead of requiring a hardcoded directory name. Supports any 7.4.x or 7.6.x release. ([#12](https://github.com/jmpijll/fortimanager-code-mode-mcp/pull/12)) — thanks [@kb1isz](https://github.com/kb1isz)
+
 ## [1.0.0] — 2026-03-02
 
 ### Added
@@ -86,7 +92,8 @@ _No unreleased changes._
 - **Graceful shutdown** for both stdio and HTTP transports with signal deduplication
 - **Startup health check** validates FortiManager connectivity at boot
 
-[Unreleased]: https://github.com/jmpijll/fortimanager-code-mode-mcp/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/jmpijll/fortimanager-code-mode-mcp/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/jmpijll/fortimanager-code-mode-mcp/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/jmpijll/fortimanager-code-mode-mcp/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/jmpijll/fortimanager-code-mode-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jmpijll/fortimanager-code-mode-mcp/releases/tag/v0.1.0
