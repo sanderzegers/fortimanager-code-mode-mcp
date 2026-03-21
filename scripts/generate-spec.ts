@@ -27,19 +27,19 @@ import type {
 
 interface SpecConfig {
   version: string;
-  htmlDir: string;
+  htmlDirPattern: RegExp;
   outputPath: string;
 }
 
 const SPECS: SpecConfig[] = [
   {
     version: '7.4',
-    htmlDir: 'docs/api-reference/FortiManager-7.4.9-JSON-API-Reference/html',
+    htmlDirPattern: /^FortiManager-(7\.4\.\d+)-JSON-API-Reference$/,
     outputPath: 'src/spec/fmg-api-spec-7.4.json',
   },
   {
     version: '7.6',
-    htmlDir: 'docs/api-reference/FortiManager-7.6.5-JSON-API-Reference/html',
+    htmlDirPattern: /^FortiManager-(7\.6\.\d+)-JSON-API-Reference$/,
     outputPath: 'src/spec/fmg-api-spec-7.6.json',
   },
 ];
@@ -48,13 +48,20 @@ const SPECS: SpecConfig[] = [
 
 function main(): void {
   const rootDir = process.cwd();
+  const apiReferenceDir = path.resolve(rootDir, 'docs/api-reference');
 
   for (const specConfig of SPECS) {
-    const htmlDir = path.resolve(rootDir, specConfig.htmlDir);
+    const htmlDir = findLatestHtmlDir(
+      apiReferenceDir,
+      specConfig.version,
+      specConfig.htmlDirPattern,
+    );
     const outputPath = path.resolve(rootDir, specConfig.outputPath);
 
-    if (!fs.existsSync(htmlDir)) {
-      console.warn(`Skipping ${specConfig.version}: HTML docs not found at ${htmlDir}`);
+    if (!htmlDir) {
+      console.warn(
+        `Skipping ${specConfig.version}: matching HTML docs not found in ${apiReferenceDir}`,
+      );
       continue;
     }
 
@@ -95,6 +102,43 @@ function main(): void {
     const fileSizeMB = (fs.statSync(outputPath).size / (1024 * 1024)).toFixed(2);
     console.log(`  File size:  ${fileSizeMB} MB`);
   }
+}
+
+function findLatestHtmlDir(
+  apiReferenceDir: string,
+  version: string,
+  htmlDirPattern: RegExp,
+): string | null {
+  if (!fs.existsSync(apiReferenceDir)) {
+    return null;
+  }
+
+  const matchedDirectories = fs
+    .readdirSync(apiReferenceDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => ({ name: entry.name, match: entry.name.match(htmlDirPattern) }))
+    .filter((entry): entry is { name: string; match: RegExpMatchArray } => entry.match !== null)
+    .map(({ name, match }) => ({
+      name,
+      patchVersion: Number.parseInt(match[1]!.split('.')[2]!, 10),
+    }))
+    .filter(({ patchVersion }) => Number.isFinite(patchVersion))
+    .sort((a, b) => b.patchVersion - a.patchVersion);
+
+  const latestDirectory = matchedDirectories[0];
+  if (!latestDirectory) {
+    return null;
+  }
+
+  const htmlDir = path.join(apiReferenceDir, latestDirectory.name, 'html');
+  if (!fs.existsSync(htmlDir)) {
+    console.warn(
+      `Skipping ${version}: resolved latest directory ${latestDirectory.name}, but html subdir is missing`,
+    );
+    return null;
+  }
+
+  return htmlDir;
 }
 
 // ─── Spec Generation ────────────────────────────────────────────────
